@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="robots" content="noindex, nofollow">
+  <title>Admin · Adventure Food</title>
+  <meta name="theme-color" content="#05552a">
+  <link rel="icon" type="image/svg+xml" href="../assets/favicon.svg">
+  <link rel="apple-touch-icon" href="../assets/favicon.svg">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Playfair+Display:ital,wght@1,700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../css/style.css">
+  <link rel="stylesheet" href="../css/admin.css">
+</head>
+<body class="admin">
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7" fill="none" stroke="currentColor" stroke-width="2"/><path d="m20 20-3.5-3.5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
+    <symbol id="i-close" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
+    <symbol id="i-phone" viewBox="0 0 24 24"><path d="M5 3h3l2 5-2.5 1.5a11 11 0 0 0 7 7L16 14l5 2v3a2 2 0 0 1-2 2A17 17 0 0 1 3 5a2 2 0 0 1 2-2Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></symbol>
+    <symbol id="i-pin" viewBox="0 0 24 24"><path d="M12 22s7-6.2 7-12a7 7 0 0 0-14 0c0 5.8 7 12 7 12Z" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="12" cy="10" r="2.5" fill="currentColor"/></symbol>
+    <symbol id="i-bell" viewBox="0 0 24 24"><path d="M6 16V11a6 6 0 0 1 12 0v5l2 2H4l2-2Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M10 21h4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
+    <symbol id="i-bell-off" viewBox="0 0 24 24"><path d="M6 16V11a6 6 0 0 1 9-5.2M18 11v5l2 2H6M10 21h4M3 3l18 18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="i-logout" viewBox="0 0 24 24"><path d="M15 4h3a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-3M10 16l-4-4 4-4M6 12h10" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="i-store" viewBox="0 0 24 24"><path d="M4 10v10h16V10M3 5l2-2h14l2 2v3a3 3 0 0 1-6 0 3 3 0 0 1-6 0 3 3 0 0 1-6 0V5Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></symbol>
+    <symbol id="i-eye" viewBox="0 0 24 24"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12Z" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="12" cy="12" r="3" fill="none" stroke="currentColor" stroke-width="2"/></symbol>
+    <symbol id="i-lock" viewBox="0 0 24 24"><rect x="4" y="10" width="16" height="11" rx="3" fill="none" stroke="currentColor" stroke-width="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3" fill="none" stroke="currentColor" stroke-width="2"/></symbol>
+    <symbol id="i-user" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4" fill="none" stroke="currentColor" stroke-width="2"/><path d="M4 21c1.5-4 4.5-6 8-6s6.5 2 8 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
+    <symbol id="i-whatsapp" viewBox="0 0 24 24"><path d="M12 2a10 10 0 0 0-8.6 15.1L2 22l5-1.3A10 10 0 1 0 12 2Zm5.4 13.9c-.2.6-1.3 1.2-1.8 1.2-.5.1-1 .2-3.3-.7-2.8-1.1-4.5-3.9-4.7-4.1-.1-.2-1.1-1.5-1.1-2.9s.7-2 1-2.3c.2-.3.5-.3.7-.3h.5c.2 0 .4 0 .6.5l.8 2c.1.2.1.4 0 .5l-.3.5-.4.4c-.1.1-.3.3-.1.6.2.3.8 1.3 1.7 2.1 1.2 1 2.1 1.4 2.4 1.5.3.2.5.1.6 0l.9-1c.2-.3.4-.2.6-.1l1.9.9c.3.1.4.2.5.3.1.1.1.6-.1 1.2Z" fill="currentColor"/></symbol>
+    <symbol id="i-check" viewBox="0 0 24 24"><path d="m5 12.5 4.5 4.5L19 7.5" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="i-refresh" viewBox="0 0 24 24"><path d="M20 11a8 8 0 0 0-14.9-3M4 13a8 8 0 0 0 14.9 3M4 4v4h4M20 20v-4h-4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  </defs>
+</svg>
+
+<!-- ============ LOGIN ============ -->
+<section class="login" id="loginView" hidden>
+  <div class="login__card">
+    <div class="login__brand">
+      <img src="../assets/logo-mark.svg" alt="" width="56" height="56">
+      <div>
+        <span class="brand__name">adventure<b>food</b></span>
+        <span class="login__role">Owner Dashboard</span>
+      </div>
+    </div>
+    <h1>Welcome back 👋</h1>
+    <p>Sign in to see and manage your orders live.</p>
+    <form id="loginForm" autocomplete="on">
+      <div class="field">
+        <label for="lgUser">Admin ID</label>
+        <div class="input-ic"><svg class="ic"><use href="#i-user"/></svg><input id="lgUser" name="username" autocomplete="username" autocapitalize="none" spellcheck="false" required placeholder="Your admin ID"></div>
+      </div>
+      <div class="field">
+        <label for="lgPass">Password</label>
+        <div class="input-ic"><svg class="ic"><use href="#i-lock"/></svg><input id="lgPass" name="password" type="password" autocomplete="current-password" required placeholder="Your password">
+          <button type="button" class="input-ic__btn" id="togglePass" aria-label="Show password"><svg class="ic"><use href="#i-eye"/></svg></button></div>
+      </div>
+      <label class="remember"><input type="checkbox" id="lgRemember" checked> Keep me signed in on this device</label>
+      <p class="login__error" id="loginError" role="alert"></p>
+      <button class="btn btn--green btn--block" id="loginBtn" type="submit">Sign In</button>
+    </form>
+    <a class="login__back" href="../">← Back to the shop</a>
+  </div>
+</section>
+
+<!-- ============ DASHBOARD ============ -->
+<section class="dash" id="dashView" hidden>
+  <header class="dash__bar">
+    <div class="dash__brand">
+      <img src="../assets/logo-mark.svg" alt="" width="38" height="38">
+      <div>
+        <b>Orders</b>
+        <span class="live" id="liveBadge"><i></i><span id="liveText">Live</span></span>
+      </div>
+    </div>
+    <div class="dash__actions">
+      <a class="icon-btn" href="../" target="_blank" rel="noopener" aria-label="Open shop"><svg class="ic"><use href="#i-store"/></svg></a>
+      <button class="icon-btn" id="soundBtn" aria-label="Toggle sound alerts"><svg class="ic"><use href="#i-bell"/></svg></button>
+      <button class="icon-btn" id="refreshBtn" aria-label="Refresh"><svg class="ic"><use href="#i-refresh"/></svg></button>
+      <button class="icon-btn" id="logoutBtn" aria-label="Sign out"><svg class="ic"><use href="#i-logout"/></svg></button>
+    </div>
+  </header>
+
+  <main class="dash__main">
+    <div class="hello">
+      <div>
+        <p class="hello__date" id="todayText"></p>
+        <h1>Assalamu Alaikum, <em>Faruq bhai</em></h1>
+      </div>
+    </div>
+
+    <div class="notice" id="modeNotice" hidden></div>
+
+    <div class="kpis" id="kpis"></div>
+
+    <div class="toolbar">
+      <div class="chips" id="statusChips"></div>
+      <label class="search-sm">
+        <svg class="ic"><use href="#i-search"/></svg>
+        <input type="search" id="orderSearch" placeholder="Search order, name or phone" aria-label="Search orders">
+      </label>
+    </div>
+
+    <div class="orders" id="orderList"></div>
+  </main>
+</section>
+
+<!-- New order alert banner -->
+<div class="alert" id="alertBar" role="status" aria-live="assertive"></div>
+
+<!-- Order detail sheet -->
+<div class="scrim" id="scrim"></div>
+<div class="modal" id="modal" role="dialog" aria-modal="true" aria-hidden="true">
+  <div class="modal__box" id="modalBox">
+    <button class="icon-btn modal__close" data-close aria-label="Close"><svg class="ic"><use href="#i-close"/></svg></button>
+    <div id="modalContent"></div>
+  </div>
+</div>
+
+<div class="toast-wrap" id="toasts" aria-live="polite"></div>
+
+<script src="../js/orders.js"></script>
+<script src="../js/admin.js"></script>
+</body>
+</html>

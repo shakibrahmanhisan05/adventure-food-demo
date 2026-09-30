@@ -329,7 +329,7 @@
       b.dataset.zero = t.count === 0;
       if (changed && t.count > 0) { b.classList.remove("bump"); void b.offsetWidth; b.classList.add("bump"); }
     });
-    $$('[data-total="cart"]').forEach(b => { b.textContent = fmt(t.total); });
+    $$('[data-total="cart"]').forEach(b => { b.textContent = t.count ? `${t.count} item${t.count > 1 ? "s" : ""} · ${fmt(t.total)}` : "Start your order"; });
     refreshCTAs();
     renderCart();
   }
@@ -432,6 +432,7 @@
     document.body.classList.add("lock");
   }
   function closeAll(silent) {
+    stopPoll();
     $$(".drawer.is-open").forEach(d => { d.classList.remove("is-open"); d.setAttribute("aria-hidden", "true"); });
     const m = $("#modal");
     if (m.classList.contains("is-open")) { m.classList.remove("is-open"); m.setAttribute("aria-hidden", "true"); }
@@ -453,7 +454,7 @@
     if (name === "checkout") return checkout();
     if (name === "location") return locationModal();
     if (name === "account") return accountModal();
-    if (name === "track") return trackModal();
+    if (name === "track") return trackModal(data);
     if (name === "info") return infoModal(data);
   }
 
@@ -526,7 +527,7 @@
         <button class="btn btn--green btn--block" type="submit" id="coSubmit">Place Order · ${fmt(t.total)}</button>
       </form></div>`);
 
-    $("#coForm").onsubmit = e => {
+    $("#coForm").onsubmit = async e => {
       e.preventDefault();
       const name = $("#coName").value.trim();
       const phone = $("#coPhone").value.replace(/[\s-]/g, "");
@@ -545,79 +546,181 @@
       const pay = $('input[name="pay"]:checked').value;
       const chosenArea = $("#coArea").value;
       const btn = $("#coSubmit");
+      const btnHTML = btn.innerHTML;
       btn.disabled = true;
       btn.innerHTML = pay === "Cash on Delivery" ? "Placing your order…" : `Connecting to ${pay}…`;
       $$(".steps span")[1].classList.add("is-done");
-      setTimeout(() => {
-        const order = {
-          id: "AF-" + String(Date.now()).slice(-6),
-          items: cart.map(l => ({ ...l })),
-          total: totals().total, pay, area: chosenArea, time: $("#coTime").value,
-          name, phone, addr, at: Date.now()
-        };
+
+      const t = totals();
+      const payload = {
+        name, phone, address: addr, area: chosenArea, deliveryTime: $("#coTime").value, payment: pay, coupon: coupon || "",
+        items: cart.map(l => ({ id: l.id, name: byId[l.id].name, variant: cleanVariant(l.variant), qty: l.qty, price: unitPrice(byId[l.id], l.variant) })),
+        subtotal: t.sub, discount: t.discount, deliveryFee: t.ship, total: t.total
+      };
+      try {
+        const [order] = await Promise.all([Orders.create(payload), new Promise(r => setTimeout(r, 900))]);
+        myOrders = [{ id: order.id, token: order.token }, ...myOrders.filter(o => o.id !== order.id)].slice(0, 20);
+        store.set("af_my_orders", myOrders);
         user = { name, phone, addr };
         store.set("af_user", user);
-        store.set("af_last_order", order);
         area = chosenArea; store.set("af_area", area); $("#deliverArea").textContent = area;
         cart = []; saveCart();
         coupon = null; store.set("af_coupon", null);
         updateCartUI();
         success(order);
-      }, 1400);
+      } catch (err) {
+        btn.disabled = false;
+        btn.innerHTML = btnHTML;
+        $$(".steps span")[1].classList.remove("is-done");
+        toast({ emoji: "⚠️", title: "Couldn't place the order", sub: err.message || "Please check your connection and try again" });
+      }
     };
   }
 
+  /* ---------- live order status ---------- */
+  let myOrders = store.get("af_my_orders", []);
+  let pollTimer = null;
+  let trackReq = 0;
+  const stopPoll = () => { clearInterval(pollTimer); pollTimer = null; };
+  const timeOf = ts => new Date(ts).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+  const tokenOf = id => (myOrders.find(o => o.id === id) || {}).token;
+
   function timelineHTML(order) {
-    const mins = Math.floor((Date.now() - order.at) / 60000);
-    const stage = mins < 2 ? 1 : mins < 10 ? 2 : mins < 35 ? 3 : 4;
-    const steps = [
-      ["Order placed", new Date(order.at).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })],
-      ["Confirmed by Adventure Food", "Our team has received your order"],
-      ["Being prepared & packed", "Fresh, hot and carefully packed"],
-      ["Out for delivery", `On the way to ${order.area}`],
-      ["Delivered", "Enjoy your meal!"]
-    ];
-    return `<ul class="timeline">${steps.map((s, i) =>
-      `<li class="${i < stage ? "is-done" : i === stage ? "is-now" : ""}"><b>${s[0]}</b><small>${s[1]}</small></li>`).join("")}</ul>`;
+    const at = s => (order.history || []).filter(h => h.status === s).map(h => h.at).pop();
+    if (order.status === "cancelled") {
+      const h = (order.history || []).filter(x => x.status === "cancelled").pop() || {};
+      return `<ul class="timeline">
+        <li class="is-done"><b>Order placed</b><small>${timeOf(order.createdAt)}</small></li>
+        <li class="is-cancel"><b>Order cancelled</b><small>${h.at ? timeOf(h.at) + " · " : ""}${h.by === "customer" ? "Cancelled by you" : esc(h.reason || "Cancelled by the store")}</small></li></ul>`;
+    }
+    const idx = Orders.FLOW.indexOf(order.status);
+    const sub = {
+      placed: "We've received your order",
+      confirmed: "Adventure Food has accepted your order",
+      preparing: "Fresh, hot and carefully packed",
+      on_the_way: `Our rider is heading to ${order.customer.area || "you"}`,
+      delivered: "Enjoy! Thank you for ordering"
+    };
+    return `<ul class="timeline">${Orders.FLOW.map((s, i) => {
+      const cls = i <= idx ? "is-done" : i === idx + 1 ? "is-now" : "";
+      const when = at(s);
+      return `<li class="${cls}"><b>${Orders.STATUS[s].label}</b><small>${when ? timeOf(when) + " · " : ""}${sub[s]}</small></li>`;
+    }).join("")}</ul>`;
+  }
+
+  function liveHTML(order) {
+    const st = Orders.STATUS[order.status];
+    const canCancel = Orders.CUSTOMER_CANCELLABLE.includes(order.status) && tokenOf(order.id);
+    const final = ["delivered", "cancelled"].includes(order.status);
+    return `<div class="live-status${final ? " is-final" : ""}" style="--st:${st.color};--st-bg:${st.bg}">
+        <span class="live-status__dot"></span><b>${st.emoji} ${st.label}</b><small>${final ? "Updated " + timeOf(order.updatedAt) : "Live · updates automatically"}</small>
+      </div>
+      ${timelineHTML(order)}
+      ${canCancel ? `<button class="btn btn--outline btn--block btn--danger" data-cancel-order="${order.id}">Cancel this order</button>` : ""}`;
+  }
+
+  function watchOrder(order, onChange) {
+    stopPoll();
+    const token = tokenOf(order.id);
+    if (!token || ["delivered", "cancelled"].includes(order.status)) return;
+    let last = order.status;
+    pollTimer = setInterval(async () => {
+      try {
+        const fresh = await Orders.get(order.id, token);
+        if (fresh.status !== last) {
+          last = fresh.status;
+          onChange(fresh);
+          toast({ emoji: Orders.STATUS[fresh.status].emoji, title: `Order #${fresh.id}: ${Orders.STATUS[fresh.status].label}` });
+          if (["delivered", "cancelled"].includes(fresh.status)) stopPoll();
+        }
+      } catch { /* try again next tick */ }
+    }, 4000);
   }
 
   function success(order) {
-    const eta = new Date(order.at + 45 * 60000).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+    const eta = timeOf(order.createdAt + 45 * 60000);
     showModal(`<div class="success">
       <div class="success__tick">${icon("check")}</div>
-      <h2>Thank you, ${esc(order.name.split(" ")[0])}! 🎉</h2>
-      <p>Your order has been placed successfully. We'll call you on <b>${esc(order.phone)}</b> to confirm.</p>
+      <h2>Thank you, ${esc(order.customer.name.split(" ")[0])}! 🎉</h2>
+      <p>Your order has been sent to Adventure Food. We'll call you on <b>${esc(order.customer.phone)}</b> to confirm.</p>
       <span class="order-id">Order #${order.id}</span>
       <div class="order-box" style="text-align:left;max-width:360px;margin:0 auto 12px">
-        <div class="sum-row"><span>Payment</span><b>${esc(order.pay)}</b></div>
+        <div class="sum-row"><span>Payment</span><b>${esc(order.payment)}</b></div>
         <div class="sum-row"><span>Estimated arrival</span><b>${eta}</b></div>
         <div class="sum-row" style="margin:0"><span>Amount</span><b>${fmt(order.total)}</b></div>
       </div>
-      ${timelineHTML(order)}
-      <div style="display:grid;gap:10px;max-width:360px;margin:0 auto">
+      <div class="live-wrap" id="liveOrder">${liveHTML(order)}</div>
+      <div style="display:grid;gap:10px;max-width:360px;margin:10px auto 0">
         <button class="btn btn--green btn--block" data-close>Continue Shopping</button>
         <a class="btn btn--outline btn--block" data-whatsapp-order>${icon("whatsapp")}Share order on WhatsApp</a>
       </div>
     </div>`);
-    const lines = order.items.map(l => `• ${byId[l.id].name}${l.variant ? " (" + cleanVariant(l.variant) + ")" : ""} × ${l.qty}`).join("\n");
-    const msg = `Hi Adventure Food! My order #${order.id}\n${lines}\nTotal: ${fmt(order.total)} (${order.pay})\nDeliver to: ${order.addr}, ${order.area}\nName: ${order.name}, ${order.phone}`;
+    const lines = order.items.map(l => `• ${l.name}${l.variant ? " (" + l.variant + ")" : ""} × ${l.qty}`).join("\n");
+    const msg = `Hi Adventure Food! My order #${order.id}\n${lines}\nTotal: ${fmt(order.total)} (${order.payment})\nDeliver to: ${order.customer.address}, ${order.customer.area}\nName: ${order.customer.name}, ${order.customer.phone}`;
     const a = $("[data-whatsapp-order]");
     a.href = "https://wa.me/" + STORE.phoneHref.replace("+", "") + "?text=" + encodeURIComponent(msg);
     a.target = "_blank"; a.rel = "noopener";
+    watchOrder(order, fresh => { const box = $("#liveOrder"); if (box) box.innerHTML = liveHTML(fresh); });
   }
 
-  function trackModal() {
-    const o = store.get("af_last_order", null);
-    if (!o) {
-      showModal(`<div class="sheet"><h2>Track your order</h2><p>Enter the order number from your confirmation.</p>
-        <form id="trackForm"><div class="field"><label for="trackId">Order number</label><input id="trackId" placeholder="AF-123456" required></div>
-        <button class="btn btn--green btn--block">Track Order</button></form></div>`);
-      $("#trackForm").onsubmit = e => { e.preventDefault(); toast({ emoji: "🔎", title: "Order not found", sub: "Please check the number or call us" }); };
+  async function trackModal(id) {
+    if (!myOrders.length) {
+      showModal(`<div class="sheet"><h2>Track your order</h2>
+        <div class="empty" style="padding:24px 0"><div class="empty__ic">📦</div><b>No orders yet</b>Orders you place on this phone will appear here with live status.<br>
+        <a href="#kitchen" class="btn btn--green" data-close>Start Ordering</a></div></div>`);
       return;
     }
-    showModal(`<div class="sheet"><h2>Order #${o.id}</h2><p>${o.items.reduce((s, l) => s + l.qty, 0)} items · ${fmt(o.total)} · ${esc(o.pay)}</p>
-      ${timelineHTML(o)}
-      <a href="tel:${STORE.phoneHref}" class="btn btn--outline btn--block">${icon("phone")}Call the store</a></div>`);
+    const current = id || myOrders[0].id;
+    const req = ++trackReq;
+    showModal(`<div class="sheet"><h2>My Orders</h2>
+      ${myOrders.length > 1 ? `<div class="chips" style="margin:10px 0 4px;padding:0">${myOrders.slice(0, 8).map(o => `<button class="chip${o.id === current ? " is-active" : ""}" data-track="${o.id}">#${o.id}</button>`).join("")}</div>` : ""}
+      <div id="trackBody"><div class="empty" style="padding:30px 0">Loading your order…</div></div></div>`);
+    try {
+      const order = await Orders.get(current, tokenOf(current));
+      const body = $("#trackBody");
+      if (!body || req !== trackReq) return;
+      const render = o => {
+        body.innerHTML = `<p style="color:var(--muted);margin:6px 0 14px"><b style="color:var(--ink)">#${o.id}</b> · ${o.items.reduce((s, l) => s + l.qty, 0)} items · ${fmt(o.total)} · ${esc(o.payment)}</p>
+          <div id="liveOrder">${liveHTML(o)}</div>
+          <a href="tel:${STORE.phoneHref}" class="btn btn--ghost btn--block" style="margin-top:10px">${icon("phone")}Call the store</a>`;
+      };
+      render(order);
+      watchOrder(order, render);
+    } catch (err) {
+      const body = $("#trackBody");
+      if (body) body.innerHTML = `<div class="empty" style="padding:24px 0"><div class="empty__ic">🔎</div><b>We couldn't load this order</b>${esc(err.message || "")}<br>Please call us and we'll help right away.</div>`;
+    }
+  }
+
+  function orderNow() {
+    if (cart.length) { openPanel("cart"); return; }
+    closeAll();
+    kitchenTab = "popular"; renderKitchenTabs(); renderKitchen();
+    $("#kitchen").scrollIntoView({ behavior: "smooth" });
+    toast({ emoji: "😋", title: "What would you like today?", sub: "Tap Add on any item, then Order Now" });
+  }
+
+  async function cancelOrder(btn) {
+    const id = btn.dataset.cancelOrder;
+    if (btn.dataset.confirm !== "1") {
+      btn.dataset.confirm = "1";
+      btn.textContent = "Tap again to confirm cancellation";
+      setTimeout(() => { if (btn.isConnected) { btn.dataset.confirm = ""; btn.textContent = "Cancel this order"; } }, 4000);
+      return;
+    }
+    btn.disabled = true;
+    btn.textContent = "Cancelling…";
+    try {
+      const o = await Orders.cancel(id, tokenOf(id));
+      const box = $("#liveOrder");
+      if (box) box.innerHTML = liveHTML(o);
+      stopPoll();
+      toast({ emoji: "✖️", title: `Order #${id} cancelled`, sub: "The store has been notified" });
+    } catch (err) {
+      btn.disabled = false;
+      btn.textContent = "Cancel this order";
+      toast({ emoji: "⚠️", title: "Couldn't cancel", sub: err.message });
+    }
   }
 
   function locationModal() {
@@ -627,7 +730,7 @@
 
   function accountModal() {
     if (user) {
-      const o = store.get("af_last_order", null);
+      const o = myOrders[0];
       showModal(`<div class="sheet">
         <div class="owner" style="border:0;padding:0;margin-bottom:18px"><span class="owner__avatar">${esc(user.name.split(" ").map(w => w[0]).join("").slice(0, 2).toUpperCase())}</span><div><b>${esc(user.name)}</b><small>${esc(user.phone)}</small></div></div>
         <ul class="menu-list">
@@ -690,7 +793,7 @@
   function flyToCart(fromEl) {
     if (matchMedia("(prefers-reduced-motion: reduce)").matches) return;
     const src = fromEl.tagName === "IMG" ? fromEl : fromEl.closest(".card, .line")?.querySelector("img");
-    const target = [...$$(".bottom-nav__bag, .cart-btn__icon")].find(e => e.offsetParent !== null);
+    const target = [...$$(".bottom-nav__bag, .order-btn__icon")].find(e => e.offsetParent !== null);
     if (!src || !target) return;
     const a = src.getBoundingClientRect(), b = target.getBoundingClientRect();
     const fly = document.createElement("img");
@@ -743,10 +846,13 @@
 
   /* ---------- global click handling ---------- */
   document.addEventListener("click", e => {
-    const t = e.target.closest("[data-add],[data-inc],[data-dec],[data-rm],[data-wish],[data-qv],[data-open],[data-close],[data-jump],[data-ktab],[data-chip],[data-checkout],[data-coupon],[data-area],[data-signout],[data-close-nav]");
+    const t = e.target.closest("[data-cancel-order],[data-track],[data-order-now],[data-add],[data-inc],[data-dec],[data-rm],[data-wish],[data-qv],[data-open],[data-close],[data-jump],[data-ktab],[data-chip],[data-checkout],[data-coupon],[data-area],[data-signout],[data-close-nav]");
     if (!t) return;
     const d = t.dataset;
 
+    if (d.cancelOrder) { cancelOrder(t); return; }
+    if (d.track) { trackModal(d.track); return; }
+    if (d.orderNow !== undefined) { e.preventDefault(); orderNow(); return; }
     if (d.add) { e.preventDefault(); addToCart(d.add, undefined, 1, t); return; }
     if (d.inc) { changeQty(d.inc, 1); return; }
     if (d.dec) { changeQty(d.dec, -1); return; }

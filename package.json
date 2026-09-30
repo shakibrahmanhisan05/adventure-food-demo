@@ -1,0 +1,10 @@
+{
+  "name": "adventure-food",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Adventure Food storefront and order admin panel",
+  "type": "module",
+  "dependencies": {
+    "@netlify/blobs": "^11.1.1"
+  }
+}
